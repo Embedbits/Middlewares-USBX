@@ -348,7 +348,9 @@ typedef signed char               SCHAR;
 #define AZURE_RTOS_USBX
 #define USBX_MAJOR_VERSION            6
 #define USBX_MINOR_VERSION            4
-#define USBX_PATCH_VERSION            2
+#define USBX_PATCH_VERSION            5
+#define USBX_BUILD_VERSION            202504
+#define USBX_HOTFIX_VERSION           'a'
 
 /* Macros for concatenating tokens, where UX_CONCATn concatenates n tokens.  */
 
@@ -439,14 +441,15 @@ typedef signed char               SCHAR;
 
 /* Map the error log macros to internal USBX function.  */
 
-#define UX_DEBUG_LOG(debug_location, debug_message, debug_code, debug_parameter_1, debug_parameter_2)  _ux_utility_debug_log((UCHAR *) debug_location, (UCHAR *) debug_message, (ULONG) debug_code, (ULONG) debug_parameter_1, (ULONG) debug_parameter_2);
+#define UX_DEBUG_LOG(debug_location, debug_message, debug_code, debug_parameter_1, debug_parameter_2)      \
+              _ux_utility_debug_log((UCHAR *) debug_location, (UCHAR *) debug_message, (ULONG) debug_code, \
+                                    (ULONG) debug_parameter_1, (ULONG) debug_parameter_2);
 
 VOID _ux_utility_debug_log(UCHAR *debug_location, UCHAR *debug_message, ULONG debug_code, ULONG debug_parameter_1, ULONG debug_parameter_2);
 
 /* DEBUG LOG MESSAGES SHOULD BE WRITTEN LIKE THIS IN THE CODE :    */
 /* If error log is enabled, insert this error message into the log buffer.  */
 /* UX_DEBUG_LOG("_ux_host_stack_rh_device_insertion", "Device insertion", port_index, port_index, 0) */
-
 
 #else
 
@@ -2747,9 +2750,9 @@ typedef struct UX_HOST_CLASS_DPUMP_STRUCT
 /* Define USBX Services.  */
 
 #if defined(UX_SYSTEM_ENABLE_ERROR_CHECKING)
-#define ux_system_initialize                                    _ux_system_initialize
-#else
 #define ux_system_initialize                                    _uxe_system_initialize
+#else
+#define ux_system_initialize                                    _ux_system_initialize
 #endif
 
 #define ux_system_uninitialize                                  _ux_system_uninitialize

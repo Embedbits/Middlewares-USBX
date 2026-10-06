@@ -172,7 +172,7 @@ extern  ULONG       _ux_utility_time_get(VOID);
 #endif
 
 #ifndef             _ux_utility_time_elapsed
-#define             _ux_utility_time_elapsed(a,b)          (((b)>=(a)) ? ((b)-(a)) : (0xFFFFFFFFul-(b)+(a)+1))
+#define             _ux_utility_time_elapsed(a,b)          (((b)>=(a)) ? ((b)-(a)) : (0xFFFFFFFFul-(a)+(b)+1))
 #else
 extern  ALIGN_TYPE  _ux_utility_time_elapsed(ALIGN_TYPE, ALIGN_TYPE);
 #endif
@@ -451,6 +451,7 @@ VOID*            _ux_utility_memory_allocate_add_safe(ULONG align,ULONG cache,UL
 #define ux_utility_event_flags_set                     _ux_utility_event_flags_set
 #define ux_utility_unicode_to_string                   _ux_utility_unicode_to_string
 #define ux_utility_string_to_unicode                   _ux_utility_string_to_unicode
+#define ux_utility_debug_callback_register             _ux_utility_debug_callback_register
 #define ux_utility_delay_ms                            _ux_utility_delay_ms
 #define ux_utility_error_callback_register             _ux_utility_error_callback_register
 #define ux_system_error_handler                        _ux_system_error_handler

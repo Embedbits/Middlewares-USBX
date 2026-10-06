@@ -24,7 +24,7 @@
 /*                                                                        */
 /*  PORT SPECIFIC C INFORMATION                            RELEASE        */
 /*                                                                        */
-/*    ux_port.h                                          Cortex-M0/GNU    */
+/*    ux_port.h                                          Cortex-M33/GNU   */
 /*                                                           6.3.0        */
 /*                                                                        */
 /*  AUTHOR                                                                */
@@ -135,11 +135,11 @@ typedef LONG                        SLONG;
 #endif
 
 #ifndef UX_MAX_CLASS_DRIVER
-#define UX_MAX_CLASS_DRIVER                                 1
+#define UX_MAX_CLASS_DRIVER                                 2
 #endif
 
 #ifndef UX_MAX_SLAVE_CLASS_DRIVER
-#define UX_MAX_SLAVE_CLASS_DRIVER                           1
+#define UX_MAX_SLAVE_CLASS_DRIVER                           2
 #endif
 
 #ifndef UX_MAX_HCD
@@ -147,23 +147,23 @@ typedef LONG                        SLONG;
 #endif
 
 #ifndef UX_MAX_DEVICES
-#define UX_MAX_DEVICES                                      1
+#define UX_MAX_DEVICES                                      2
 #endif
 
 #ifndef UX_MAX_ED
-#define UX_MAX_ED                                           70
+#define UX_MAX_ED                                           80
 #endif
 
 #ifndef UX_MAX_TD
-#define UX_MAX_TD                                           16
+#define UX_MAX_TD                                           32
 #endif
 
 #ifndef UX_MAX_ISO_TD
-#define UX_MAX_ISO_TD                                       0
+#define UX_MAX_ISO_TD                                       2
 #endif
 
 #ifndef UX_HOST_ENUM_THREAD_STACK_SIZE
-#define UX_HOST_ENUM_THREAD_STACK_SIZE                      (1*1024)
+#define UX_HOST_ENUM_THREAD_STACK_SIZE                      (2*1024)
 #endif
 
 #ifndef UX_THREAD_STACK_SIZE
@@ -257,7 +257,7 @@ VOID    outpl(ULONG,ULONG);
 
 #ifdef  UX_SYSTEM_INIT
 CHAR                            _ux_version_id[] =
-                                    "Copyright (c) 2024 Microsoft Corporation. * USBX Cortex-M0/GNU Version 6.4.1 *";
+                                    "Copyright (c) 2024 Microsoft Corporation. * USBX Cortex-M33/GNU Version 6.4.1 *";
 #else
 extern  CHAR                    _ux_version_id[];
 #endif
