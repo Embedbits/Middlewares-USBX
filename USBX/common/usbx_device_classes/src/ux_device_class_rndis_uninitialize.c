@@ -8,44 +8,44 @@
  * SPDX-License-Identifier: MIT
  **************************************************************************/
 
-
 /**************************************************************************/
 /**************************************************************************/
 /**                                                                       */
 /** USBX Component                                                        */
 /**                                                                       */
-/**   Utility                                                             */
+/**   Device RNDIS Class                                                  */
 /**                                                                       */
 /**************************************************************************/
 /**************************************************************************/
 
+#define UX_SOURCE_CODE
+
 
 /* Include necessary system files.  */
 
-#define UX_SOURCE_CODE
-
 #include "ux_api.h"
+#include "ux_device_class_rndis.h"
+#include "ux_device_stack.h"
 
 
-#if !defined(UX_STANDALONE)
 /**************************************************************************/
 /*                                                                        */
 /*  FUNCTION                                               RELEASE        */
 /*                                                                        */
-/*    _ux_utility_timer_create                            PORTABLE C      */
-/*                                                           6.1.11       */
+/*    _ux_device_class_rndis_uninitialize                 PORTABLE C      */
+/*                                                           6.xx         */
 /*  AUTHOR                                                                */
 /*                                                                        */
 /*    Chaoqiong Xiao, Microsoft Corporation                               */
 /*                                                                        */
 /*  DESCRIPTION                                                           */
 /*                                                                        */
-/*    This function creates a timer.                                      */
+/*    This function deinitializes the resources for the specified RNDIS   */
+/*    instance.                                                           */
 /*                                                                        */
 /*  INPUT                                                                 */
 /*                                                                        */
-/*    timer                                 Pointer to timer              */
-/*    timer_name                            Name of timer                 */
+/*    command                               Pointer to rndis command      */
 /*                                                                        */
 /*  OUTPUT                                                                */
 /*                                                                        */
@@ -53,48 +53,79 @@
 /*                                                                        */
 /*  CALLS                                                                 */
 /*                                                                        */
-/*    tx_timer_create                       ThreadX timer create          */
+/*    _ux_device_mutex_delete               Delete mutex                  */
+/*    _ux_device_thread_delete              Delete thread                 */
+/*    _ux_utility_memory_free               Free memory                   */
+/*    _ux_utility_event_flags_delete        Delete event flags            */
+/*    _ux_device_semaphore_delete           Delete semaphore              */
 /*                                                                        */
 /*  CALLED BY                                                             */
 /*                                                                        */
-/*    USBX Components                                                     */
+/*    Device RNDIS Class                                                  */
 /*                                                                        */
 /*  RELEASE HISTORY                                                       */
 /*                                                                        */
 /*    DATE              NAME                      DESCRIPTION             */
 /*                                                                        */
-/*  05-19-2020     Chaoqiong Xiao           Initial Version 6.0           */
-/*  09-30-2020     Chaoqiong Xiao           Modified comment(s),          */
-/*                                            resulting in version 6.1    */
-/*  04-25-2022     Chaoqiong Xiao           Modified comment(s),          */
-/*                                            off in standalone build,    */
-/*                                            resulting in version 6.1.11 */
-/*  xx-xx-xxxx     Chaoqiong Xiao           Modified comment(s),          */
-/*                                            used UX prefix to refer to  */
-/*                                            TX symbols instead of using */
-/*                                            them directly,              */
-/*                                            resulting in version 6.x    */
+/*  xx-xx-xxxx     Mohamed ayed             Initial Version 6.x           */
 /*                                                                        */
 /**************************************************************************/
-UINT  _ux_utility_timer_create(UX_TIMER *timer, CHAR *timer_name, VOID (*expiration_function) (ULONG),
-                                ULONG expiration_input, ULONG initial_ticks, ULONG reschedule_ticks,
-                                UINT activation_flag)
+UINT  _ux_device_class_rndis_uninitialize(UX_SLAVE_CLASS_COMMAND *command)
 {
 
-UINT    status;
+UX_SLAVE_CLASS_RNDIS                    *rndis;
+UX_SLAVE_CLASS                          *class_ptr;
 
 
-    /* Call ThreadX to create the timer object.  */
-    status =  tx_timer_create(timer, (CHAR *) timer_name, expiration_function, expiration_input,
-                                initial_ticks, reschedule_ticks, activation_flag);
+    /* Get the class container.  */
+    class_ptr =  command -> ux_slave_class_command_class_ptr;
 
-    /* Check status.  */
-    if (status != UX_SUCCESS)
+    /* Get the class instance in the container.  */
+    rndis = (UX_SLAVE_CLASS_RNDIS *) class_ptr -> ux_slave_class_instance;
 
-        /* Error trap. */
-        _ux_system_error_handler(UX_SYSTEM_LEVEL_THREAD, UX_SYSTEM_CONTEXT_UTILITY, status);
+    /* Sanity check.  */
+    if (rndis != UX_NULL)
+    {
+
+        /* Deinitialize resources. We do not check if they have been allocated
+           because if they weren't, the class register (called by the application)
+           would have failed.  */
+
+#if !defined(UX_DEVICE_STANDALONE)
+
+        /* Delete the queue mutex.  */
+        _ux_device_mutex_delete(&rndis -> ux_slave_class_rndis_mutex);
+
+        /* Delete bulk out thread .  */
+        _ux_device_thread_delete(&rndis -> ux_slave_class_rndis_bulkout_thread);
+
+        /* Free bulk out thread stack.  */
+        _ux_utility_memory_free(rndis -> ux_slave_class_rndis_bulkout_thread_stack);
+
+        /* Delete interrupt thread.  */
+        _ux_device_thread_delete(&rndis -> ux_slave_class_rndis_interrupt_thread);
+
+        /* Free interrupt thread stack.  */
+        _ux_utility_memory_free(rndis -> ux_slave_class_rndis_interrupt_thread_stack);
+
+        /* Delete bulk in thread.  */
+        _ux_device_thread_delete(&rndis -> ux_slave_class_rndis_bulkin_thread);
+
+        /* Free bulk in thread stack.  */
+        _ux_utility_memory_free(rndis -> ux_slave_class_rndis_bulkin_thread_stack);
+
+        /* Delete the interrupt thread sync event flags group.  */
+        _ux_device_event_flags_delete(&rndis -> ux_slave_class_rndis_event_flags_group);
+
+#endif
+
+        /* Free the resources.  */
+#if UX_DEVICE_ENDPOINT_BUFFER_OWNER == 1
+        _ux_utility_memory_free(rndis -> ux_device_class_rndis_endpoint_buffer);
+#endif
+        _ux_utility_memory_free(rndis);
+    }
 
     /* Return completion status.  */
-    return(status);
+    return(UX_SUCCESS);
 }
-#endif

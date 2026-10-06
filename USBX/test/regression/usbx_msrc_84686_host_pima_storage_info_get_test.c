@@ -148,6 +148,7 @@ static UX_HOST_CLASS_PIMA                  *pima_host;
 static UX_HOST_CLASS_PIMA_SESSION          pima_host_session;
 static UX_HOST_CLASS_PIMA_DEVICE           pima_host_device;
 static UX_HOST_CLASS_PIMA_OBJECT           pima_host_object;
+static UX_HOST_CLASS_PIMA_STORAGE          pima_host_storage;
 
 static ULONG                               host_buffer[4096];
 static UCHAR                               *host_buffer8 =  (UCHAR  *)host_buffer;
@@ -794,7 +795,7 @@ static VOID    test_pima_instance_deactivate(VOID *instance)
 #ifdef CTEST
 void test_application_define(void *first_unused_memory)
 #else
-void usbx_msrc_72619_pima_storage_ids_get_test_application_define(void *first_unused_memory)
+void    usbx_msrc_84686_host_pima_storage_info_get_test_application_define(void *first_unused_memory)
 #endif
 {
 
@@ -804,7 +805,7 @@ CHAR *                  memory_pointer;
 ULONG                   test_n;
 
     /* Inform user.  */
-    printf("Running MSRC 72619 PIMA storage IDs get Test........................ ");
+    printf("Running MSRC 84686 Host PIMA storage info get Test.................. ");
 
     /* Reset testing counts. */
     ux_test_utility_sim_mutex_create_count_reset();
@@ -975,64 +976,31 @@ ULONG                   test_n;
     }
 }
 
-VOID test_pima_storage_ids_send(UX_SLAVE_CLASS_PIMA *pima, ULONG array_length, ULONG container_length)
+
+static ULONG            replace_store_desc_len = 0;
+static ULONG            replace_volum_label_len = 0;
+
+static VOID ux_test_pima_data(UX_TEST_ACTION *action, VOID *params)
 {
-UX_SLAVE_ENDPOINT   *endpoint = pima -> ux_device_class_pima_bulk_in_endpoint;
+UX_SLAVE_ENDPOINT   *endpoint = pima_device -> ux_device_class_pima_bulk_in_endpoint;
 UX_SLAVE_TRANSFER   *transfer = &endpoint -> ux_slave_endpoint_transfer_request;
 UCHAR               *buffer = transfer -> ux_slave_transfer_request_data_pointer;
-ULONG               *array;
-ULONG               i;
-UINT                status;
-    // printf("array %ld (%lx), container %ld\n", array_length, array_length, container_length);
-    if (container_length < (array_length + 1) * 4)
-        container_length = (array_length + 1) * 4;
-    /* Fill in the data container type.  */
-    _ux_utility_short_put(buffer + UX_DEVICE_CLASS_PIMA_DATA_HEADER_TYPE,
-                            UX_DEVICE_CLASS_PIMA_CT_DATA_BLOCK);
-    /* Fill in the data code.  */
-    _ux_utility_short_put(buffer + UX_DEVICE_CLASS_PIMA_DATA_HEADER_CODE,
-                            UX_DEVICE_CLASS_PIMA_OC_GET_STORAGE_IDS);
-    /* Fill in the Transaction ID.  */
-    _ux_utility_long_put(buffer + UX_DEVICE_CLASS_PIMA_DATA_HEADER_TRANSACTION_ID, 
-                            pima -> ux_device_class_pima_transaction_id);
-    /* Fill array.  */
-    array = (ULONG*)(buffer + UX_DEVICE_CLASS_PIMA_DATA_HEADER_SIZE);
-    /* - Length of array.  */
-    _ux_utility_long_put((UCHAR*)array, array_length);
-    array ++;
-    /* - Items in array.  */
-    array_length = UX_MIN(array_length, (container_length - UX_DEVICE_CLASS_PIMA_DATA_HEADER_LENGTH - 4) / 4);
-    for (i = 0; i < array_length; i ++)
-        array[i] = i;
-    /* Fill in the size of the response header.  */
-    _ux_utility_long_put(buffer + UX_DEVICE_CLASS_PIMA_DATA_HEADER_LENGTH, 
-                            container_length);
-    status = _ux_device_stack_transfer_request(transfer, container_length, 0);
-    status = _ux_device_class_pima_response_send(pima, UX_DEVICE_CLASS_PIMA_RC_OK, 0, 0, 0, 0);
-}
-
-static TX_THREAD        replace_pima_cmd_thread;
-static UCHAR            replace_pima_cmd_thread_stack[UX_TEST_STACK_SIZE];
-static TX_SEMAPHORE     replace_pima_cmd_semaphore;
-static ULONG            replace_pima_ids_n = 0;
-static ULONG            replace_pima_container_l = UX_DEVICE_CLASS_PIMA_DATA_HEADER_SIZE;
-
-void  replace_pima_cmd_thread_entry(ULONG arg)
-{
-    while(1)
-    {
-        tx_semaphore_get(&replace_pima_cmd_semaphore, TX_WAIT_FOREVER);
-        test_pima_storage_ids_send(pima_device, replace_pima_ids_n, replace_pima_container_l);
+UCHAR               *desc_pos, *label_pos;
+    /* Since command is done, device should have buffer ready!  */
+    // printf("DevEpInBuf: %ld\n", transfer -> ux_slave_transfer_request_requested_length);
+    /* Get the two UNICODE string position.  */
+    desc_pos = buffer + UX_DEVICE_CLASS_PIMA_STORAGE_FREE_STORAGE_DESCRIPTION;
+    label_pos = desc_pos + (*desc_pos * 2) + 1;
+    // printf("DevLen: %d, %d\n", *desc_pos, *label_pos);
+    if (replace_store_desc_len) {
+        *desc_pos = (UCHAR)replace_store_desc_len;
+    }
+    if (replace_volum_label_len) {
+        *label_pos = (UCHAR)replace_volum_label_len;
     }
 }
 
-static VOID ux_test_pima_command(UX_TEST_ACTION *action, VOID *params)
-{
-    tx_semaphore_put(&replace_pima_cmd_semaphore);
-    tx_semaphore_put(&pima_host -> ux_host_class_pima_bulk_out_endpoint -> ux_endpoint_transfer_request.ux_transfer_request_semaphore);
-}
-
-static UX_TEST_HCD_SIM_ACTION replace_bulk_out_transfer[] = {
+static UX_TEST_HCD_SIM_ACTION replace_bulk_in_transfer[] = {
 /* function, request to match,
    port action, port status,
    request action, request EP, request data, request actual length, request status,
@@ -1040,13 +1008,14 @@ static UX_TEST_HCD_SIM_ACTION replace_bulk_out_transfer[] = {
    no_return */
 {   UX_HCD_TRANSFER_REQUEST, UX_NULL,
         UX_FALSE, 0,
-        UX_TEST_MATCH_EP, 0x02, UX_NULL, 0, 0,
-        UX_SUCCESS, ux_test_pima_command,
-        UX_FALSE},
+        UX_TEST_MATCH_EP, 0x81, UX_NULL, 0, 0,
+        UX_SUCCESS, ux_test_pima_data,
+        .no_return = 1,
+        .do_after = 0},
 {   0   }
 };
 
-static void test_msrc_72525_cases(void)
+static void test_msrc_84686_cases(void)
 {
 UINT  status;
 ULONG actual_length;
@@ -1061,55 +1030,31 @@ ULONG actual_length;
     UX_TEST_CHECK_SUCCESS(status);
 
 /*
-The _ux_host_class_pima_storage_ids_get function does not process the response
-retrieved from a pima device in a secure manner. The number of returned storage
-ids may be maliciously crafted to bypass validation against available memory by
-triggering an integer overflow in multiplication of number of storage ids and
-size of ULONG type.
-
-A large number of storage ids, stored in the nb_storage_ids variable, will
-result in a buffer overflow in the for loop responsible for unpacking of storage
-ids.
-
-```
-nb_storage_ids = _ux_utility_long_get(storage_ids);
-if (((nb_storage_ids + 1) * sizeof(ULONG)) > UX_HOST_CLASS_PIMA_STORAGE_IDS_LENGTH)
-nb_storage_ids = (UX_HOST_CLASS_PIMA_STORAGE_IDS_LENGTH / sizeof(ULONG)) - 1;
-pima_session -> ux_host_class_pima_session_nb_storage_ids = nb_storage_ids;
-
-if ((nb_storage_ids * sizeof(ULONG)) -> storage_id_length)
-    return(UX_MEMORY_INSUFFICIENT);
-
-for(count_storage_ids = 0; count_storage_ids &lt; nb_storage_ids; count_storage_ids++)
-    *(storage_ids_array + count_storage_ids) = _ux_utility_long_get(storage_ids + sizeof(ULONG) +
-    (count_storage_ids * sizeof(ULONG)));
-
-```
-
-*Impact*
-
-Processing of a maliciously crafted UX_HOST_CLASS_PIMA_OC_GET_STORAGE_IDS request response will result in an integer overflow and a consecutive buffer overflow. The attacker may exploit this issue to cause denial of service by crashing the pima host. Depending on end application, if one has control over contents of memory past the storage_ids array it would also be possible to achieve execution of arbitrary code (e.g. by overwriting a function pointer member of the UX_PICTBRIDGE_STRUCT struct).
-
-*Reproduction steps*
-
-- Connect a malicious pima device to the host
-- Provide a UX_HOST_CLASS_PIMA_OC_GET_STORAGE_IDS response with triggering integer overflow to bypass validation (e.g. number of storage ids set to 1073741825)
-- Observe the buffer overflow of the storage_ids_array array in the for loop unpacking storage ids
+no size check for the two memory copy operations via the _ux_utility_memory_copy() marked below.
+Therefore, a write past the end of the fixed size (256 bytes) buffer `storage -> ux_host_class_pima_storage_description` could occur.
+UINT  _ux_host_class_pima_storage_info_get(UX_HOST_CLASS_PIMA *pima,
+                                        UX_HOST_CLASS_PIMA_SESSION *pima_session,
+                                        ULONG storage_id, UX_HOST_CLASS_PIMA_STORAGE *storage)
+{
+    ...
+}
 */
 
-    /* Hook requests to replace answers.  */
-    tx_semaphore_create(&replace_pima_cmd_semaphore, "cmd_sem", 0);
-    tx_thread_create(&replace_pima_cmd_thread, "cmd_thr, ", replace_pima_cmd_thread_entry, 0,
-                     replace_pima_cmd_thread_stack, UX_TEST_STACK_SIZE,
-                     20, 20, 1, TX_AUTO_START);
-
-    /* Device reported array size ((nb_storage_ids + 1) * sizeof(ULONG)) overflow!  */
-    replace_pima_ids_n = 0x40000001; /* Overflow if *4 (=4) and (+1)*4 (=8)  */
-    replace_pima_container_l = UX_DEVICE_CLASS_PIMA_DATA_HEADER_SIZE + 4;
-    ux_test_hcd_sim_host_set_actions(replace_bulk_out_transfer);
-
-    status = ux_host_class_pima_storage_ids_get(pima_host, &pima_host_session, host_buffer32, 32);
+    /* _ux_utility_memory_copy(storage -> ux_host_class_pima_storage_description, storage_pointer, unicode_string_length) */
+    replace_store_desc_len = 0xFF;
+    replace_volum_label_len = 0;
+    ux_test_hcd_sim_host_set_actions(replace_bulk_in_transfer);
+    status = ux_host_class_pima_storage_info_get(pima_host, &pima_host_session, UX_TEST_PIMA_STORAGE_ID, &pima_host_storage);
     UX_TEST_CHECK_NOT_SUCCESS(status);
+
+    /* _ux_utility_memory_copy(storage -> ux_host_class_pima_storage_volume_label, storage_pointer, unicode_string_length) */
+    replace_store_desc_len = 0;
+    replace_volum_label_len = 0xFF;
+    ux_test_hcd_sim_host_set_actions(replace_bulk_in_transfer);
+    status = ux_host_class_pima_storage_info_get(pima_host, &pima_host_session, 0, &pima_host_storage);
+    UX_TEST_CHECK_NOT_SUCCESS(status);
+
+    /* Restore hooks.  */
 
     status = ux_host_class_pima_session_close(pima_host, &pima_host_session);
     UX_TEST_CHECK_SUCCESS(status);
@@ -1133,7 +1078,7 @@ INT                                                 i;
         test_control_return(1);
     }
 
-    test_msrc_72525_cases();
+    test_msrc_84686_cases();
 
     stepinfo(">>>>>>>>>>>> All Done\n");
 
