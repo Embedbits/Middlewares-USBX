@@ -2,7 +2,7 @@
 
 Internal Azure DevOps mirror of **Eclipse ThreadX USBX** (upstream: [eclipse-threadx/usbx](https://github.com/eclipse-threadx/usbx)), imported here for testing before being exported as a public middleware module to GitHub.
 
-This is the **import** side only — see `ThreadX_AzureImport.sh --component usbx` in `Middlewares_Importer`. The export step (Azure DevOps → GitHub, with its own testing/approval logic) is separate and not yet built.
+This is the **import** side only — see `ThreadX_AzureImport.sh --component usbx` in `Middlewares_Handler`. The export step (Azure DevOps → GitHub, with its own testing/approval logic) is separate and not yet built.
 
 This file itself is regenerated (rendered from `README_ThreadXDefault.md`) by every import run — don't hand-edit it here, edit `README_ThreadXDefault.md` next to `ThreadX_AzureImport.sh` instead.
 
